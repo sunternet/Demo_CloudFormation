@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  VPCStackName:
+    Description: >
+      Name of an active CloudFormation stack that contains the VPC
+      resources to be used by this stack.
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  KeyName:
+    Description: Name of an existing EC2 key pair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 key pair
+
+Mappings:
+  AWSRegion2AMI:
+    ap-southeast-1:
+      # Ubuntu 16.04
+      HVM64: ami-0ee0b284267ea6cde
+
+Resources:
+  AllowAllSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "K8s Allow All"
+      SecurityGroupIngress:
+        -
+          IpProtocol: '-1'
+          FromPort: '-1'
+          ToPort: '-1'
+          CidrIp: "0.0.0.0/0"
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCStackName}-VPC"
+      Tags:
+        -
+          Key: Name
+          Value: !Ref AWS::StackName
+
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId:
+          Fn::FindInMap:
+            - AWSRegion2AMI
+            - !Ref AWS::Region
+            - HVM64
+        InstanceType: t2.micro
+        KeyName:
+          Ref: KeyName
+        UserData:
+          Fn::Base64:
+            Fn::Sub: |
+              #!/bin/bash -xe
+              apt-get update
+              apt-get -y install apache2
+
+  EC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      LaunchTemplate:
+        LaunchTemplateId: !Ref EC2LaunchTemplate
+        Version: 1
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: 
+            Fn::ImportValue: !Sub "${VPCStackName}-PublicSubnet1"
+          GroupSet: 
+            - !Ref AllowAllSecurityGroup
+      Tags:
+        -
+          Key: Name
+          Value: !Sub ${AWS::StackName}-Ubt16
