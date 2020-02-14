@@ -15,12 +15,6 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     ConstraintDescription: Must be the name of an existing EC2 key pair
 
-Mappings:
-  AWSRegion2AMI:
-    ap-southeast-1:
-      # Ubuntu 16.04
-      HVM64: ami-0ee0b284267ea6cde
-
 Resources:
   AllowAllSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -43,11 +37,8 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
-        ImageId:
-          Fn::FindInMap:
-            - AWSRegion2AMI
-            - !Ref AWS::Region
-            - HVM64
+        ImageId: ami-0ee0b284267ea6cde
+        # Ubuntu 16.04
         InstanceType: t2.micro
         KeyName:
           Ref: KeyName
